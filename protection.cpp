@@ -43,11 +43,13 @@ OB_PREOP_CALLBACK_STATUS Protect::PreOperationCallback(PVOID RegistrationContext
 	PEPROCESS	CurrentProcess = PsGetCurrentProcess();
 	HANDLE		TargetPid = PsGetProcessId(TargetProcess);
 
-	//Only allow kernel,and own process to open handle to protected process. 
-	if (CurrentProcess == TargetProcess || OperationInformation->KernelHandle || TargetPid != (HANDLE)(*(int*)RegistrationContext))
+	if (CurrentProcess == TargetProcess || OperationInformation->KernelHandle == 1 || TargetPid != (HANDLE)(*(int*)RegistrationContext)) {
 		return OB_PREOP_SUCCESS;
-	else 
+	}
+	else {
+		// If anyones try to access protected process do not allow access
 		OperationInformation->Parameters->CreateHandleInformation.DesiredAccess = 0;
-	
+	}
+
 	return OB_PREOP_SUCCESS;
 }

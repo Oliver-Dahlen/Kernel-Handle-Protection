@@ -6,7 +6,7 @@
 
 HANDLE hIoHandle = INVALID_HANDLE_VALUE;
 
-int load_driver(const char *driver_file) {
+int LoadDriver(const char *driver_file) {
 	hIoHandle = (HANDLE)CreateFile(DEVICE_NAME, GENERIC_READ | GENERIC_WRITE, 0, NULL, OPEN_EXISTING, 0, 0);
 	if (hIoHandle != INVALID_HANDLE_VALUE) {
 		printf("Get_IO_Handle() succeed!\n");
@@ -19,13 +19,14 @@ int load_driver(const char *driver_file) {
 	return 1;
 }
 
-int protect_process(int pid) {
-	char command[6] = { 0 };
+int ProtectProcess(int pid, char num = 0) {
+	char command[7] = { 0 };
 
 	command[0] = 'e';				//'e' for enable protection
 	*((int*)&command[1]) = pid;
+	command[6] = num;
 
-	if (WriteFile(hIoHandle, command, 5, NULL, NULL) != 0) {
+	if (WriteFile(hIoHandle, command, 6, NULL, NULL) != 0) {
 		printf("Write_IO_Handle() succeed!\n");
 	}
 	else {
@@ -36,10 +37,10 @@ int protect_process(int pid) {
 	return 1;
 }
 
-int stop_protection() {
-	char command[1] = { 'd' };			//'d' for disable protection
+int StopProtection(char num = 0) {
+	char command[2] = { 'd', num };			//'d' for disable protection
 
-	if (WriteFile(hIoHandle, command, 1, NULL, NULL) != 0 ){
+	if (WriteFile(hIoHandle, command, 2, NULL, NULL) != 0 ){
 		printf("Write_IO_Handle() succeed!\n");
 	}
 	else {
@@ -50,7 +51,7 @@ int stop_protection() {
 	return 1;
 }
 
-void unload_driver() {
+void UnloadDriver() {
 	if (hIoHandle != INVALID_HANDLE_VALUE) {
 		CloseHandle(hIoHandle);
 	}
@@ -80,26 +81,26 @@ int main(void) {
 
 		switch (selection) {
 		case 1:							//Load driver
-			load_driver(driver_file);
+			LoadDriver(driver_file);
 			break;
 
 		case 2:							//Protect process
 			printf("PID: ");
 			scanf_s("%i", &pid);
-			protect_process(pid);
+			ProtectProcess(pid);
 			break;
 
 		case 3:							//Stop protection
-			stop_protection();
+			StopProtection();
 			break;
 			
 		case 4:							//Unload driver
-			unload_driver();
+			UnloadDriver();
 			break;
 
 		case 5:							//Exit
-			stop_protection();
-			unload_driver();
+			StopProtection();
+			UnloadDriver();
 			return 0;
 			break;
 
