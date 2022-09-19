@@ -9,39 +9,37 @@ void Protect::DisableProtection() {
 }
 
 int Protect::EnableProtection(int Pid) {
-	OB_OPERATION_REGISTRATION OperationRegistrations[1] = { { 0 } };
-	OB_CALLBACK_REGISTRATION CallbackRegistration = { 0 };
-	UNICODE_STRING UstrAltitude = { 0 };
+	OB_OPERATION_REGISTRATION OperationReg[1] = { { 0 } };
+	OB_CALLBACK_REGISTRATION CallbackReg	  = { 0 };
+	UNICODE_STRING UstrAltitude				  = { 0 };
 	NTSTATUS Status;
 	ProtectedPid = Pid;
 
-	OperationRegistrations[0].ObjectType = PsProcessType;					//Set type to process
-	OperationRegistrations[0].Operations = OB_OPERATION_HANDLE_CREATE;		//Intercept all handle creation
-	OperationRegistrations[0].PreOperation = PreOperationCallback;
-	OperationRegistrations[0].PostOperation = [](PVOID RegistrationContext, POB_POST_OPERATION_INFORMATION OperationInformation) {return; };
+	OperationReg[0].ObjectType    = PsProcessType;					//Set type to process
+	OperationReg[0].Operations    = OB_OPERATION_HANDLE_CREATE;		//Intercept all handle creation
+	OperationReg[0].PreOperation  = PreOperationCallback;
+	OperationReg[0].PostOperation = [](PVOID RegistrationContext, POB_POST_OPERATION_INFORMATION OperationInformation) {return; }; // Nothing to put here
 
 	RtlInitUnicodeString(&UstrAltitude, L"1000");
-	CallbackRegistration.Version = OB_FLT_REGISTRATION_VERSION;
-	CallbackRegistration.OperationRegistrationCount = 1;
-	CallbackRegistration.Altitude = UstrAltitude;
-	CallbackRegistration.RegistrationContext = (PVOID)&ProtectedPid;
-	CallbackRegistration.OperationRegistration = OperationRegistrations;
+	CallbackReg.Version = OB_FLT_REGISTRATION_VERSION;
+	CallbackReg.OperationRegistrationCount = 1;
+	CallbackReg.Altitude = UstrAltitude;
+	CallbackReg.RegistrationContext = (PVOID)&ProtectedPid;
+	CallbackReg.OperationRegistration = OperationReg;
 
-	Status = ObRegisterCallbacks(&CallbackRegistration, &CallbackRegistrationHandle);
+	Status = ObRegisterCallbacks(&CallbackReg, &CallbackRegistrationHandle);
 	if (NT_SUCCESS(Status)) {
-		DbgPrint("ObRegisterCallbacks() succeed!");
 		return 1;
 	}
 	else {
-		DbgPrint("ObRegisterCallbacks() failed! status: %i", Status);
 		return 0;
 	}
 }
 
 OB_PREOP_CALLBACK_STATUS Protect::PreOperationCallback(PVOID RegistrationContext, POB_PRE_OPERATION_INFORMATION OperationInformation) {
-	PEPROCESS	TargetProcess = (PEPROCESS)OperationInformation->Object;
-	PEPROCESS	CurrentProcess = PsGetCurrentProcess();
-	HANDLE		TargetPid = PsGetProcessId(TargetProcess);
+	PEPROCESS TargetProcess	 = (PEPROCESS)OperationInformation->Object;
+	PEPROCESS CurrentProcess = PsGetCurrentProcess();
+	HANDLE TargetPid		 = PsGetProcessId(TargetProcess);
 
 	if (CurrentProcess == TargetProcess || OperationInformation->KernelHandle == 1 || TargetPid != (HANDLE)(*(int*)RegistrationContext)) {
 		return OB_PREOP_SUCCESS;

@@ -1,18 +1,31 @@
 #include <stdio.h>
 #include <Windows.h>
+#include <iostream>
 
-#define SERVICE_NAME	"DigiExam"
 #define DEVICE_NAME		"\\\\.\\DigiExam"
-
 HANDLE hIoHandle = INVALID_HANDLE_VALUE;
+
+enum Input {
+	LOAD_DRIVER		= 1,
+	PROTECT_PROCESS = 2,
+	STOP_PROTECTION = 3,
+	UNLOAD_DRIVER	= 4,
+	EXIT_DRIVER		= 5
+};
+
+struct DriverCommand {
+	char   type;
+	int     pid;
+	short index;
+};
 
 int LoadDriver(const char *driver_file) {
 	hIoHandle = (HANDLE)CreateFile(DEVICE_NAME, GENERIC_READ | GENERIC_WRITE, 0, NULL, OPEN_EXISTING, 0, 0);
 	if (hIoHandle != INVALID_HANDLE_VALUE) {
-		printf("Get_IO_Handle() succeed!\n");
+		std::cout << "Get io handle succeed!\n" << std::flush;
 	}
 	else {
-		printf("Get_IO_Handle() failed: %i\n", GetLastError());
+		std::cout << "Get io handle failed!\n" << std::flush;
 		return 0;
 	}
 
@@ -20,17 +33,16 @@ int LoadDriver(const char *driver_file) {
 }
 
 int ProtectProcess(int pid, char num = 0) {
-	char command[7] = { 0 };
+	DriverCommand Command;
+	Command.type	= PROTECT_PROCESS;
+	Command.index	= (short)num;
+	Command.pid		= pid;
 
-	command[0] = 'e';				//'e' for enable protection
-	*((int*)&command[1]) = pid;
-	command[6] = num;
-
-	if (WriteFile(hIoHandle, command, 6, NULL, NULL) != 0) {
-		printf("Write_IO_Handle() succeed!\n");
+	if (WriteFile(hIoHandle, &Command, sizeof(DriverCommand), NULL, NULL) != 0) {
+		std::cout << "Writing to io handle succeeded! \n" << std::flush;
 	}
 	else {
-		printf("Write_IO_Handle() failed!\n");
+		std::cout << "Writing to io handle failed! \n" << std::flush;
 		return 0;
 	}
 
@@ -38,13 +50,16 @@ int ProtectProcess(int pid, char num = 0) {
 }
 
 int StopProtection(char num = 0) {
-	char command[2] = { 'd', num };			//'d' for disable protection
+	DriverCommand Command;
+	Command.index	= num;
+	Command.pid		= 0;
+	Command.type	= STOP_PROTECTION;
 
-	if (WriteFile(hIoHandle, command, 2, NULL, NULL) != 0 ){
-		printf("Write_IO_Handle() succeed!\n");
+	if (WriteFile(hIoHandle, &Command, sizeof(DriverCommand), NULL, NULL) != 0) {
+		std::cout << "Get io handle succeed! stop Protection\n" << std::flush;
 	}
 	else {
-		printf("Write_IO_Handle() failed!\n");
+		std::cout << "Get io handle failed! stop Protection\n" << std::flush;
 		return 0;
 	}
 
@@ -55,57 +70,46 @@ void UnloadDriver() {
 	if (hIoHandle != INVALID_HANDLE_VALUE) {
 		CloseHandle(hIoHandle);
 	}
-	printf("Close_IO_Handle() called!\n");
+	std::cout << "Close io handle called!\n" << std::endl;
 }
 
 int main(void) {
-	int		selection;
-	int		pid;
-	char	driver_file[MAX_PATH];
+	int		Selection;
+	int		Pid;
+	char	DriverFile[MAX_PATH];
 
-	printf(
-		"1: Load Driver\n"
-		"2: Protect Process\n"
-		"3: Stop Protection\n"
-		"4: Unload Driver\n"
-		"5: Bye!\n"
-		"\n"
-		);
+	std::cout << "1: Load Driver\n"		<< std::flush;
+	std::cout << "2: Protect Process\n" << std::flush;
+	std::cout << "3: Stop Protection\n" << std::flush;
+	std::cout << "4: Unload Driver\n"	<< std::flush;
+	std::cout << "5: Close app\n"		<< std::flush;
 
-	GetCurrentDirectory(MAX_PATH, driver_file);
+	GetCurrentDirectory(MAX_PATH, DriverFile);
 
-	strcat_s(driver_file, MAX_PATH, "\\protection.sys");
+	strcat_s(DriverFile, MAX_PATH, "\\protection.sys");
 
-	for (;;) {
-		scanf_s("%i", &selection);
-
-		switch (selection) {
-		case 1:							//Load driver
-			LoadDriver(driver_file);
-			break;
-
-		case 2:							//Protect process
+	while (true) {
+		std::cin >> Selection;
+		if (Selection == LOAD_DRIVER) {
+			LoadDriver(DriverFile);
+		}
+		else if (Selection == PROTECT_PROCESS) {
 			printf("PID: ");
-			scanf_s("%i", &pid);
-			ProtectProcess(pid);
-			break;
-
-		case 3:							//Stop protection
+			std::cin >> Pid;
+			ProtectProcess(Pid);
+		}
+		else if (Selection == STOP_PROTECTION) {
 			StopProtection();
-			break;
-			
-		case 4:							//Unload driver
+		}
+		else if (Selection == UNLOAD_DRIVER) {
 			UnloadDriver();
-			break;
-
-		case 5:							//Exit
+		}
+		else if (Selection == EXIT_DRIVER) {
 			StopProtection();
 			UnloadDriver();
-			return 0;
-			break;
-
-		default:
-			printf("What?\n");
+		}
+		else {
+			std::cout << "Invalid input \n" << std::flush;
 		}
 	}
 

@@ -11,15 +11,14 @@ Protect ProtectedApps[Protect::MaximumProtectedApps] = {Protect()}; // Using thi
 
 VOID OnDriverUnload(PDRIVER_OBJECT DriverObject);
 VOID InitIo(PDRIVER_OBJECT DriverObject); // Initlize our io requests
-NTSTATUS DriverEntry(PDRIVER_OBJECT DriverObject, PUNICODE_STRING RegistryPath); // Entry of driver, to setup threads etc
+NTSTATUS DriverEntry(PDRIVER_OBJECT DriverObject, PUNICODE_STRING RegistryPath); // Entry of driver, to setup threads etc now we dont have thread hehe
 INT SetupIoDevice(PDRIVER_OBJECT DriverObject); // Prevent overload
-VOID HandleBufferMessage(PCHAR Buffer, INT Len); // Handle the messages sent by IO
+VOID HandleBufferData(DriverCommand* Buffer, INT Len); // Handle the messages sent by IO
 
 VOID OnDriverUnload(PDRIVER_OBJECT DriverObject) {
 	for (auto x : ProtectedApps){
 		x.DisableProtection();
 	}
-	//proc.DisableProtection();
 	if (IoDeleteSymbolicLink(&StrSymbolicLink) != STATUS_SUCCESS) {
 		DbgPrint("Failed to delete Symbolic link");
 	}
@@ -33,12 +32,7 @@ NTSTATUS DriverEntry(PDRIVER_OBJECT DriverObject, PUNICODE_STRING RegistryPath) 
 	RtlInitUnicodeString(&StrDeviceName, DeviceName);
 	RtlInitUnicodeString(&StrSymbolicLink, SymbolicLink);
 	
-	if (SetupIoDevice(DriverObject) == 1) {
-		DbgPrint("SetupIoDevice() succeed!");
-	}
-	else {
-		DbgPrint("SetupIoDevice() failed!");
-	}
+	SetupIoDevice(DriverObject);
 
 	DbgPrint("Driver loaded!");
 
@@ -53,11 +47,11 @@ VOID InitIo(PDRIVER_OBJECT DriverObject) {
 	DriverObject->MajorFunction[IRP_MJ_CREATE] = [](PDEVICE_OBJECT DeviceObject, PIRP Irp) {return STATUS_SUCCESS; }; // Creat_DeviceIo
 	DriverObject->MajorFunction[IRP_MJ_CLOSE]  = [](PDEVICE_OBJECT DeviceObject, PIRP Irp) {return STATUS_SUCCESS; }; // Close_DeviceIo
 	DriverObject->MajorFunction[IRP_MJ_WRITE]  = [](PDEVICE_OBJECT DeviceObject, PIRP Irp) {						  // Write_DeviceIo
-		PCHAR Buffer = NULL;
+		DriverCommand* Buffer = NULL;
 		PIO_STACK_LOCATION pIoStack = IoGetCurrentIrpStackLocation(Irp);
 		if (pIoStack) {
-			Buffer = (PCHAR)(Irp->AssociatedIrp.SystemBuffer);
-			if (Buffer) HandleBufferMessage(Buffer, pIoStack->Parameters.Write.Length);
+			Buffer = (DriverCommand*)(Irp->AssociatedIrp.SystemBuffer);
+			if (Buffer) HandleBufferData(Buffer, pIoStack->Parameters.Write.Length);
 		}
 		return STATUS_SUCCESS;
 	};
@@ -81,25 +75,18 @@ INT SetupIoDevice(PDRIVER_OBJECT DriverObject) {
 	return 1;
 }
 
-VOID HandleBufferMessage(PCHAR Buffer, INT Len) {
-	if (Len == 2) {
-		if (Buffer[0] == 'd') {				//'d' for disable protection
-			ProtectedApps[Buffer[1]].DisableProtection();
+VOID HandleBufferData(DriverCommand* Buffer, INT Len) {
+	if (Buffer->type == STOP_PROTECTION) {
+		ProtectedApps[Buffer->index].DisableProtection();
+	}
+
+	if (Buffer->type == PROTECT_PROCESS) {
+		if (ProtectedApps[Buffer->index].EnableProtection(Buffer->pid)) {
+			DbgPrint("enable_protection() succeed!");
+		}
+		else {
+			DbgPrint("enable_protection() failed!");
 		}
 	}
 
-	else if (Len == 6) {
-		if (Buffer[0] == 'e') {				//'e' for enable protection
-			int Pid;
-
-			memcpy(&Pid, &Buffer[1], 4);
-			DbgPrint("Got it! Target pid: %i", Pid);
-			if (ProtectedApps[Buffer[6]].EnableProtection(Pid)) {
-				DbgPrint("enable_protection() succeed!");
-			}
-			else {
-				DbgPrint("enable_protection() failed!");
-			}
-		}
-	}
 }
