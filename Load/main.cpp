@@ -85,8 +85,11 @@ int main(void) {
 	std::cout << "5: Close app\n"		<< std::flush;
 
 	GetCurrentDirectory(MAX_PATH, DriverFile);
-
+#ifndef __GNUC__			//Use strcat_s for Visual Studio, but not for gcc
 	strcat_s(DriverFile, MAX_PATH, "\\protection.sys");
+#else
+	strcat(driver_file, "\\protection.sys");
+#endif
 
 	while (true) {
 		std::cin >> Selection;
@@ -107,6 +110,7 @@ int main(void) {
 		else if (Selection == EXIT_DRIVER) {
 			StopProtection();
 			UnloadDriver();
+			exit(-1);
 		}
 		else {
 			std::cout << "Invalid input \n" << std::flush;

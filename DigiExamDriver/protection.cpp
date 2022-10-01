@@ -1,4 +1,4 @@
-#include "protection.h"
+#include "protection.hpp"
 
 void Protect::DisableProtection() {
 	if (CallbackRegistrationHandle != NULL) {
@@ -7,6 +7,39 @@ void Protect::DisableProtection() {
 	}
 	DbgPrint("disable_protection() called!");
 }
+
+
+OB_PREOP_CALLBACK_STATUS PreOperationCallback(PVOID RegistrationContext, POB_PRE_OPERATION_INFORMATION OperationInformation) {
+	PEPROCESS TargetProcess = (PEPROCESS)OperationInformation->Object;
+	PEPROCESS CurrentProcess = PsGetCurrentProcess();
+	DbgPrintEx(DPFLTR_IHVDRIVER_ID, DPFLTR_ERROR_LEVEL, "Called\n");
+
+	HANDLE TargetPid = PsGetProcessId(TargetProcess);
+
+	if (CurrentProcess == TargetProcess) {
+		return OB_PREOP_SUCCESS;
+	}
+
+	//Allow operations from the kernel
+	if (OperationInformation->KernelHandle == 1) {
+		return OB_PREOP_SUCCESS;
+	}
+
+	//Ignore other processes
+	if (TargetPid != (HANDLE)(*(int*)RegistrationContext)) {
+		return OB_PREOP_SUCCESS;
+	}
+
+	else {
+		// If anyones try to access protected process do not allow access
+		OperationInformation->Parameters->CreateHandleInformation.DesiredAccess = 0;
+		DbgPrintEx(DPFLTR_IHVDRIVER_ID, DPFLTR_ERROR_LEVEL, "Rekt\n");
+
+	}
+
+	return OB_PREOP_SUCCESS;
+}
+
 
 int Protect::EnableProtection(int Pid) {
 	OB_OPERATION_REGISTRATION OperationReg[1] = { { 0 } };
@@ -28,26 +61,16 @@ int Protect::EnableProtection(int Pid) {
 	CallbackReg.OperationRegistration = OperationReg;
 
 	Status = ObRegisterCallbacks(&CallbackReg, &CallbackRegistrationHandle);
+	DbgPrintEx(DPFLTR_IHVDRIVER_ID, DPFLTR_ERROR_LEVEL, "Reg called\n");
+
 	if (NT_SUCCESS(Status)) {
+		DbgPrintEx(DPFLTR_IHVDRIVER_ID, DPFLTR_ERROR_LEVEL, "Reg good\n");
+
 		return 1;
 	}
 	else {
+		DbgPrintEx(DPFLTR_IHVDRIVER_ID, DPFLTR_ERROR_LEVEL, "Reg failed %i\n", Status);
+
 		return 0;
 	}
-}
-
-OB_PREOP_CALLBACK_STATUS Protect::PreOperationCallback(PVOID RegistrationContext, POB_PRE_OPERATION_INFORMATION OperationInformation) {
-	PEPROCESS TargetProcess	 = (PEPROCESS)OperationInformation->Object;
-	PEPROCESS CurrentProcess = PsGetCurrentProcess();
-	HANDLE TargetPid		 = PsGetProcessId(TargetProcess);
-
-	if (CurrentProcess == TargetProcess || OperationInformation->KernelHandle == 1 || TargetPid != (HANDLE)(*(int*)RegistrationContext)) {
-		return OB_PREOP_SUCCESS;
-	}
-	else {
-		// If anyones try to access protected process do not allow access
-		OperationInformation->Parameters->CreateHandleInformation.DesiredAccess = 0;
-	}
-
-	return OB_PREOP_SUCCESS;
 }

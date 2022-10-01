@@ -1,4 +1,4 @@
-#include "protection.h"
+#include "protection.hpp"
 
 const wchar_t* DeviceName   = L"\\Device\\DigiExam";
 const wchar_t* SymbolicLink = L"\\DosDevices\\DigiExam";
@@ -33,8 +33,8 @@ NTSTATUS DriverEntry(PDRIVER_OBJECT DriverObject, PUNICODE_STRING RegistryPath) 
 	RtlInitUnicodeString(&StrSymbolicLink, SymbolicLink);
 	
 	SetupIoDevice(DriverObject);
+	DbgPrintEx(0, 0, "Hello Driver");
 
-	DbgPrint("Driver loaded!");
 
 	return STATUS_SUCCESS;
 }
@@ -55,12 +55,15 @@ VOID InitIo(PDRIVER_OBJECT DriverObject) {
 		}
 		return STATUS_SUCCESS;
 	};
+	DbgPrintEx(DPFLTR_IHVDRIVER_ID, DPFLTR_ERROR_LEVEL, "init done\n");
+
 }
 
 INT SetupIoDevice(PDRIVER_OBJECT DriverObject) {
 	NTSTATUS Status = IoCreateDevice(DriverObject, 0, &StrDeviceName, FILE_DEVICE_UNKNOWN, FILE_DEVICE_SECURE_OPEN, FALSE, &DeviceObject); // Create comm request device
 	if (Status != STATUS_SUCCESS) {
-		DbgPrint("Failed to create io device");
+		DbgPrintEx(DPFLTR_IHVDRIVER_ID, DPFLTR_ERROR_LEVEL, "Failed to create io device\n");
+
 		return 0;
 	}
 
@@ -69,9 +72,12 @@ INT SetupIoDevice(PDRIVER_OBJECT DriverObject) {
 
 	Status = IoCreateSymbolicLink(&StrSymbolicLink, &StrDeviceName);
 	if (Status != STATUS_SUCCESS) {
-		DbgPrint("Symbolic link failed.");
+		DbgPrintEx(DPFLTR_IHVDRIVER_ID, DPFLTR_ERROR_LEVEL, "Symbolic link failed.\n");
+
 		return 0;
 	}
+	DbgPrintEx(DPFLTR_IHVDRIVER_ID, DPFLTR_ERROR_LEVEL, "Device setup good\n");
+
 	return 1;
 }
 
@@ -82,10 +88,11 @@ VOID HandleBufferData(DriverCommand* Buffer, INT Len) {
 
 	if (Buffer->type == PROTECT_PROCESS) {
 		if (ProtectedApps[Buffer->index].EnableProtection(Buffer->pid)) {
-			DbgPrint("enable_protection() succeed!");
+			DbgPrintEx(DPFLTR_IHVDRIVER_ID, DPFLTR_ERROR_LEVEL, "enable_protection() succeed!\n");
+
 		}
 		else {
-			DbgPrint("enable_protection() failed!");
+			DbgPrint("enable_protection() failed!\n");
 		}
 	}
 
