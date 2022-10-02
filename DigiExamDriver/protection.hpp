@@ -15,12 +15,12 @@ struct DriverCommand {
 	int     pid;
 	short index;
 };
-
+static int AllowedPids[10] = {0};
 class Protect {
 public:
-	int EnableProtection(int Pid);
+	int EnableProtection(int Pid, int Index);
 	void DisableProtection();
-	//static OB_PREOP_CALLBACK_STATUS PreOperationCallback(PVOID RegistrationContext, POB_PRE_OPERATION_INFORMATION OperationInformation);
+	static OB_PREOP_CALLBACK_STATUS PreOperationCallback(PVOID RegistrationContext, POB_PRE_OPERATION_INFORMATION OperationInformation);
 	int ProtectedPid;
 	const static int MaximumProtectedApps = 10;
 	void* CallbackRegistrationHandle = nullptr;

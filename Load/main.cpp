@@ -4,7 +4,7 @@
 
 #define DEVICE_NAME		"\\\\.\\DigiExam"
 HANDLE hIoHandle = INVALID_HANDLE_VALUE;
-
+int m = 0;
 enum Input {
 	LOAD_DRIVER		= 1,
 	PROTECT_PROCESS = 2,
@@ -19,7 +19,7 @@ struct DriverCommand {
 	short index;
 };
 
-int LoadDriver(const char *driver_file) {
+int LoadDriver() {
 	hIoHandle = (HANDLE)CreateFile(DEVICE_NAME, GENERIC_READ | GENERIC_WRITE, 0, NULL, OPEN_EXISTING, 0, 0);
 	if (hIoHandle != INVALID_HANDLE_VALUE) {
 		std::cout << "Get io handle succeed!\n" << std::flush;
@@ -32,7 +32,7 @@ int LoadDriver(const char *driver_file) {
 	return 1;
 }
 
-int ProtectProcess(int pid, char num = 0) {
+int ProtectProcess(int pid, char num) {
 	DriverCommand Command;
 	Command.type	= PROTECT_PROCESS;
 	Command.index	= (short)num;
@@ -74,9 +74,8 @@ void UnloadDriver() {
 }
 
 int main(void) {
-	int		Selection;
-	int		Pid;
-	char	DriverFile[MAX_PATH];
+	int	Selection;
+	int	Pid;
 
 	std::cout << "1: Load Driver\n"		<< std::flush;
 	std::cout << "2: Protect Process\n" << std::flush;
@@ -84,22 +83,16 @@ int main(void) {
 	std::cout << "4: Unload Driver\n"	<< std::flush;
 	std::cout << "5: Close app\n"		<< std::flush;
 
-	GetCurrentDirectory(MAX_PATH, DriverFile);
-#ifndef __GNUC__			//Use strcat_s for Visual Studio, but not for gcc
-	strcat_s(DriverFile, MAX_PATH, "\\protection.sys");
-#else
-	strcat(driver_file, "\\protection.sys");
-#endif
-
 	while (true) {
 		std::cin >> Selection;
 		if (Selection == LOAD_DRIVER) {
-			LoadDriver(DriverFile);
+			LoadDriver();
 		}
 		else if (Selection == PROTECT_PROCESS) {
 			printf("PID: ");
 			std::cin >> Pid;
-			ProtectProcess(Pid);
+			ProtectProcess(Pid, m);
+			m++;
 		}
 		else if (Selection == STOP_PROTECTION) {
 			StopProtection();
